@@ -1,7 +1,6 @@
 {
-    "buildCommand": "vite build",
-    "devCommand": "vite dev",
-    "installCommand": "bun install",
-    "outputDirectory": "dist",
-    "rootDirectory": "mindweaver-main"
+    "buildCommand": "bun run --cwd mindweaver-main build",
+    "devCommand": "bun run --cwd mindweaver-main dev",
+    "installCommand": "bun install --cwd mindweaver-main",
+    "outputDirectory": "mindweaver-main/dist"
 }
