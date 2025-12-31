@@ -4,13 +4,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from '@/hooks/use-toast';
-import { Menu, Mic, Search, Send, Settings as SettingsIcon, Sparkles } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Menu, Mic, Search, Send, Settings as SettingsIcon, Sparkles, Upload, FileText, Brain, Heart, Zap, Code, Briefcase, GraduationCap } from 'lucide-react';
 import PersonalitySelector from '@/components/chat/PersonalitySelector';
 import MessageList from '@/components/chat/MessageList';
 import ConversationSidebar from '@/components/chat/ConversationSidebar';
 import VisualSearch, { type SearchTab } from '@/components/visual-search/VisualSearch';
+import FileUpload from '@/components/FileUpload';
+import AnalystMode from '@/components/AnalystMode';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useVoice } from '@/contexts/VoiceContext';
@@ -24,7 +27,7 @@ type Message = {
   created_at: string;
 };
 
-type Personality = 'coach' | 'friend' | 'analyst' | 'creative';
+type Personality = 'coach' | 'friend' | 'analyst' | 'creative' | string;
 
 const Chat = () => {
   const { conversationId } = useParams();
@@ -33,6 +36,7 @@ const Chat = () => {
   const { settings, loading: settingsLoading } = useUserSettings();
   const isMobile = useIsMobile();
   const { listenOnce, speak, isListening, setSelectedVoiceURI } = useVoice();
+  const { toast } = useToast();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -43,10 +47,45 @@ const Chat = () => {
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchRequest, setSearchRequest] = useState<{ tab?: SearchTab; query: string } | null>(null);
+  const [isFileUploadOpen, setIsFileUploadOpen] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+  const [customPersonalities, setCustomPersonalities] = useState<any[]>([]);
 
   useEffect(() => {
     setSelectedVoiceURI(settings.voiceURI ?? null);
   }, [settings.voiceURI, setSelectedVoiceURI]);
+
+  // Load custom personalities from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('customPersonalities');
+      if (saved) {
+        const customPersonalities = JSON.parse(saved);
+        // Convert to format expected by PersonalitySelector
+        const formattedPersonalities = customPersonalities.map((p: any) => ({
+          id: p.id,
+          label: p.name,
+          icon: (() => {
+            const iconMap: any = {
+              'Brain': Brain,
+              'Heart': Heart,
+              'Sparkles': Sparkles,
+              'Zap': Zap,
+              'Code': Code,
+              'Briefcase': Briefcase,
+              'GraduationCap': GraduationCap
+            };
+            return iconMap[p.icon] || Brain;
+          })(),
+          color: p.color,
+          isCustom: true
+        }));
+        setCustomPersonalities(formattedPersonalities);
+      }
+    } catch (error) {
+      console.error('Error loading custom personalities:', error);
+    }
+  }, []);
 
   useEffect(() => {
     if (loading) return;
@@ -206,7 +245,7 @@ const Chat = () => {
       .from('conversations')
       .insert({
         user_id: user.id,
-        personality,
+        personality: (personality as string).match(/^(coach|friend|analyst|creative)$/) ? personality as 'coach' | 'friend' | 'analyst' | 'creative' : 'friend',
         title: 'Новый разговор',
       })
       .select()
@@ -397,8 +436,21 @@ const Chat = () => {
                     <Menu className="w-4 h-4" />
                   </Button>
                 )}
-                <PersonalitySelector value={personality} onChange={setPersonality} />
+                <PersonalitySelector 
+                value={personality} 
+                onChange={setPersonality} 
+                customPersonalities={customPersonalities}
+              />
                 <LanguageSelector className="hidden sm:flex w-[180px]" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsFileUploadOpen(true)}
+                  title="Загрузить файлы"
+                >
+                  <Upload className="w-4 h-4" />
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -484,6 +536,31 @@ const Chat = () => {
           </div>
         )}
 
+        {!isMobile && isFileUploadOpen && (
+          <div className="w-[420px] border-l border-border/40 bg-background">
+            <div className="h-full p-4 overflow-y-auto">
+              <div className="flex items-center justify-between mb-3">
+                <div className="font-semibold">Загрузка файлов</div>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setIsFileUploadOpen(false)}>
+                  Закрыть
+                </Button>
+              </div>
+              <FileUpload 
+                onFilesChange={setUploadedFiles}
+                className="max-h-[calc(100vh-120px)]"
+              />
+            </div>
+          </div>
+        )}
+
+        {personality === 'analyst' && !isSearchOpen && !isFileUploadOpen && (
+          <div className="w-[420px] border-l border-border/40 bg-background">
+            <div className="h-full p-4 overflow-y-auto">
+              <AnalystMode />
+            </div>
+          </div>
+        )}
+
         {isMobile && (
           <>
             <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
@@ -508,6 +585,30 @@ const Chat = () => {
                 </div>
               </SheetContent>
             </Sheet>
+
+            <Sheet open={isFileUploadOpen} onOpenChange={setIsFileUploadOpen}>
+              <SheetContent side="bottom" className="h-[85vh] p-4">
+                <SheetHeader>
+                  <SheetTitle>Загрузка файлов</SheetTitle>
+                </SheetHeader>
+                <div className="mt-4 h-[calc(85vh-120px)] overflow-y-auto">
+                  <FileUpload onFilesChange={setUploadedFiles} />
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            {personality === 'analyst' && (
+              <Sheet open={true} onOpenChange={() => {}}>
+                <SheetContent side="bottom" className="h-[85vh] p-4">
+                  <SheetHeader>
+                    <SheetTitle>Аналитический режим</SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-4 h-[calc(85vh-120px)] overflow-y-auto">
+                    <AnalystMode />
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
           </>
         )}
       </div>

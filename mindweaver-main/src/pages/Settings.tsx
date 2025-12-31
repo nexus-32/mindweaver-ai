@@ -32,6 +32,7 @@ import {
   EyeOff,
   CheckCircle2
 } from 'lucide-react';
+import PersonalityManager from '@/components/PersonalityManager';
 
 type UserSettings = {
   // Profile
@@ -190,6 +191,82 @@ const Settings = () => {
 
   const [email2faEnabled, setEmail2faEnabled] = useState(false);
   const [showEmailSetup, setShowEmailSetup] = useState(false);
+
+  // Custom personalities state
+  const [customPersonalities, setCustomPersonalities] = useState<any[]>([]);
+  const [allPersonalities, setAllPersonalities] = useState<any[]>([]);
+
+  // Combine default and custom personalities
+  useEffect(() => {
+    // Load custom personalities from localStorage
+    try {
+      const saved = localStorage.getItem('customPersonalities');
+      const loadedCustom = saved ? JSON.parse(saved) : [];
+      setCustomPersonalities(loadedCustom);
+    } catch (error) {
+      console.error('Error loading custom personalities:', error);
+      setCustomPersonalities([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const defaultPersonalities = [
+      {
+        id: 'coach',
+        name: 'Тренер',
+        description: 'Помогает достичь целей и развиваться',
+        icon: 'Brain',
+        color: 'text-orange-500',
+        systemPrompt: 'Ты - профессиональный тренер по личностному росту. Помоги пользователю достичь целей, мотивируй и давай практические советы.',
+        temperature: 0.7,
+        maxTokens: 2000,
+        capabilities: ['Мотивация', 'Планирование', 'Анализ целей'],
+        isActive: true,
+        isCustom: false
+      },
+      {
+        id: 'friend',
+        name: 'Друг',
+        description: 'Поддерживающий и понимающий собеседник',
+        icon: 'Heart',
+        color: 'text-pink-500',
+        systemPrompt: 'Ты - близкий друг. Будь поддерживающим, эмпатичным, но честным. Слушай внимательно и давай искренние советы.',
+        temperature: 0.8,
+        maxTokens: 1500,
+        capabilities: ['Поддержка', 'Эмпатия', 'Советы'],
+        isActive: true,
+        isCustom: false
+      },
+      {
+        id: 'analyst',
+        name: 'Аналитик',
+        description: 'Анализирует данные и создает отчеты',
+        icon: 'Brain',
+        color: 'text-blue-500',
+        systemPrompt: 'Ты - аналитик данных. Анализируй информацию, создавай графики, таблицы и детальные отчеты. Будь точным и структурированным.',
+        temperature: 0.3,
+        maxTokens: 3000,
+        capabilities: ['Анализ данных', 'Графики', 'Отчеты'],
+        isActive: true,
+        isCustom: false
+      },
+      {
+        id: 'creative',
+        name: 'Креатив',
+        description: 'Генерирует творческие идеи',
+        icon: 'Sparkles',
+        color: 'text-purple-500',
+        systemPrompt: 'Ты - творческий ассистент. Генерируй оригинальные идеи, помогай с творческими проектами и вдохновляй.',
+        temperature: 0.9,
+        maxTokens: 2000,
+        capabilities: ['Креативность', 'Идеи', 'Вдохновение'],
+        isActive: true,
+        isCustom: false
+      }
+    ];
+    
+    setAllPersonalities([...defaultPersonalities, ...customPersonalities]);
+  }, [customPersonalities]);
 
   useEffect(() => {
     if (loading) return;
@@ -636,10 +713,14 @@ const Settings = () => {
 
         <form onSubmit={handleSubmit}>
           <Tabs defaultValue="profile" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2">
               <TabsTrigger value="profile" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline">Профиль</span>
+              </TabsTrigger>
+              <TabsTrigger value="personalities" className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                <span className="hidden sm:inline">Режимы ИИ</span>
               </TabsTrigger>
               <TabsTrigger value="appearance" className="flex items-center gap-2">
                 <Palette className="h-4 w-4" />
@@ -720,6 +801,19 @@ const Settings = () => {
                   </Button>
                 </CardFooter>
               </Card>
+            </TabsContent>
+
+            {/* Personalities Tab */}
+            <TabsContent value="personalities" className="space-y-4">
+              <PersonalityManager 
+                personalities={allPersonalities}
+                onPersonalitiesChange={(personalities) => {
+                  const customOnly = personalities.filter(p => p.isCustom);
+                  setCustomPersonalities(customOnly);
+                }}
+                selectedPersonality="friend"
+                onPersonalitySelect={() => {}}
+              />
             </TabsContent>
 
             {/* Appearance Tab */}
